@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Exception;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,11 +14,22 @@ class PelangganController extends Controller
 {
     public function index()
     {
-        $pelanggan = Schema::hasTable('tbl_pelanggan') ? Pelanggan::all() : collect([]);
+        $pelanggan = Schema::hasTable('tbl_pelanggan') ? Pelanggan::with('user')->withCount('transaksi')->paginate(10) : collect([]);
 
         return Inertia::render('Pelanggan/Index', [
             'pelangganList' => $pelanggan
         ]);
+    }
+
+    public function exportPdf()
+    {
+        $pelanggan = Schema::hasTable('tbl_pelanggan') ? Pelanggan::with('user')->withCount('transaksi')->get() : collect([]);
+
+        $pdf = Pdf::loadView('exports.pelanggan_pdf', [
+            'pelanggan' => $pelanggan
+        ]);
+
+        return $pdf->download('Data_Pelanggan.pdf');
     }
 
     public function riwayat($id)
