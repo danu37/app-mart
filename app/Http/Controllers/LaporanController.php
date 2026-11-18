@@ -25,7 +25,6 @@ class LaporanController extends Controller
 
         $query = Transaksi::with('pelanggan');
 
-        // Logika Filter Berdasarkan Tipe Laporan
         if ($tipe == 'harian') {
             $date = $tanggal_awal ?? date('Y-m-d');
             $query->whereDate('tanggal', $date);
@@ -39,15 +38,19 @@ class LaporanController extends Controller
             $query->whereYear('tanggal', $tahun);
         }
 
-        $transaksi = $query->orderBy('tanggal', 'desc')->get();
-        $totalPendapatan = $transaksi->sum('total_belanja');
+        $totalPendapatan = (clone $query)->sum('total_belanja');
+        $transaksi = $query->orderBy('tanggal', 'desc')->paginate(10)->withQueryString();
 
-        // Jika request berasal dari tombol export
+        // Jika request berasal dari tombol export, ambil SEMUA data (tanpa paginasi)
         if ($request->has('export')) {
+            ini_set('memory_limit', '512M');
+            set_time_limit(120);
+
             $exportTipe = $request->input('export');
+            $allTransaksi = (clone $query)->orderBy('tanggal', 'desc')->get();
 
             $dataExport = [
-                'transaksi' => $transaksi,
+                'transaksi' => $allTransaksi,
                 'total_pendapatan' => $totalPendapatan,
                 'tipe' => $tipe,
                 'periode' => $this->getPeriodeLabel($request)
@@ -56,7 +59,7 @@ class LaporanController extends Controller
             if ($exportTipe == 'pdf') {
                 return $this->exportPDF($dataExport);
             } elseif ($exportTipe == 'excel') {
-                return $this->exportExcel($transaksi);
+                return $this->exportExcel($allTransaksi);
             }
         }
 
